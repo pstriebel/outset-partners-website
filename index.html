@@ -272,12 +272,13 @@
 
   /* ===== ACCESS / LOGIN BAND ===== */
   .access{
-    background:var(--ink);color:#fff;text-align:center;
+    background:var(--paper-raise);color:var(--ink);text-align:center;
     padding:2.6rem 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   }
-  .access .eyebrow{color:#F0C89A;}
-  .access h2{font-family:'Playfair Display',serif;font-weight:700;color:#fff;font-size:clamp(1.5rem,2.8vw,2.2rem);max-width:24ch;margin:0.8rem auto 1.2rem;}
-  .access p{color:rgba(255,255,255,0.72);max-width:48ch;margin:0 auto 2rem;}
+  .access .eyebrow{color:var(--accent);}
+  .access h2{font-family:'Playfair Display',serif;font-weight:700;color:var(--ink);font-size:clamp(1.5rem,2.8vw,2.2rem);max-width:24ch;margin:0.8rem auto 1.2rem;}
+  .access p{color:var(--ink-soft);max-width:48ch;margin:0 auto 2rem;}
   .access-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
   .access-secondary{
     display:flex;gap:1.8rem;justify-content:center;flex-wrap:wrap;
@@ -286,12 +287,12 @@
   .access-secondary button{
     background:none;border:none;cursor:pointer;
     font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.86rem;font-weight:600;color:rgba(255,255,255,0.75);
+    font-size:0.86rem;font-weight:600;color:var(--ink-soft);
     display:inline-flex;align-items:center;gap:0.4rem;
     padding:0.3rem 0;border-bottom:1px solid transparent;
     transition:all .2s ease;
   }
-  .access-secondary button:hover{color:#fff;border-bottom-color:var(--accent);}
+  .access-secondary button:hover{color:var(--ink);border-bottom-color:var(--accent);}
   .access-secondary svg{width:14px;height:14px;}
 
   /* ===== MODAL ===== */
@@ -343,6 +344,12 @@
     width:100%;justify-content:center;border:none;cursor:pointer;
     font-family:'Plus Jakarta Sans',sans-serif;margin-top:0.4rem;
   }
+  .modal-card .btn-primary:disabled{opacity:0.6;cursor:not-allowed;}
+  .form-status{
+    font-size:0.85rem;margin-top:0.9rem;text-align:center;min-height:1.2em;
+  }
+  .form-status.success{color:#3B7A4A;}
+  .form-status.error{color:#B23A2E;}
   .modal-direct{
     display:flex;align-items:center;gap:0.7rem;
     padding:0.9rem 1rem;border:1px solid var(--line);border-radius:10px;
@@ -561,10 +568,11 @@
         <label for="conMessage">Message</label>
         <textarea id="conMessage" rows="4" required></textarea>
       </div>
-      <button type="submit" class="btn btn-primary">
+      <button type="submit" class="btn btn-primary" id="contactSubmitBtn">
         Send Message
         <svg viewBox="0 0 8 12" fill="none"><path d="M1.5 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <p class="form-status" id="contactStatus"></p>
     </form>
   </div>
 </div>
@@ -595,10 +603,11 @@
         <label for="schNotes">What would you like to discuss? (optional)</label>
         <textarea id="schNotes" rows="2"></textarea>
       </div>
-      <button type="submit" class="btn btn-primary">
+      <button type="submit" class="btn btn-primary" id="scheduleSubmitBtn">
         Send Request
         <svg viewBox="0 0 8 12" fill="none"><path d="M1.5 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <p class="form-status" id="scheduleStatus"></p>
     </form>
   </div>
 </div>
@@ -644,34 +653,90 @@
     if (e.key === 'Escape') { closeModal(contactModal); closeModal(scheduleModal); }
   });
 
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwlpkygy';
+
   document.getElementById('contactForm').addEventListener('submit', function(e){
     e.preventDefault();
+    const btn = document.getElementById('contactSubmitBtn');
+    const status = document.getElementById('contactStatus');
     const name = document.getElementById('conName').value.trim();
     const email = document.getElementById('conEmail').value.trim();
     const message = document.getElementById('conMessage').value.trim();
 
-    const subject = `Contact from ${name} — Outset Partners site`;
-    const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}\n`;
+    btn.disabled = true;
+    status.textContent = 'Sending...';
+    status.className = 'form-status';
 
-    const mailto = `mailto:pstriebel@outsetpartners.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    closeModal(contactModal);
+    const formData = new FormData();
+    formData.append('form_type', 'Contact Us');
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('message', message);
+    formData.append('_subject', `Contact from ${name} — Outset Partners site`);
+
+    fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        status.textContent = "Thanks — we've received your message and will be in touch soon.";
+        status.className = 'form-status success';
+        document.getElementById('contactForm').reset();
+        setTimeout(() => closeModal(contactModal), 2200);
+      } else {
+        status.textContent = "Something went wrong. Please email us directly at pstriebel@outsetpartners.com.";
+        status.className = 'form-status error';
+      }
+    }).catch(() => {
+      status.textContent = "Something went wrong. Please email us directly at pstriebel@outsetpartners.com.";
+      status.className = 'form-status error';
+    }).finally(() => {
+      btn.disabled = false;
+    });
   });
 
   document.getElementById('scheduleForm').addEventListener('submit', function(e){
     e.preventDefault();
+    const btn = document.getElementById('scheduleSubmitBtn');
+    const status = document.getElementById('scheduleStatus');
     const name = document.getElementById('schName').value.trim();
     const email = document.getElementById('schEmail').value.trim();
     const times = document.getElementById('schTimes').value.trim();
     const notes = document.getElementById('schNotes').value.trim();
 
-    const subject = `Call Request — ${name}`;
-    let body = `Name: ${name}\nEmail: ${email}\n\nProposed times:\n${times}\n`;
-    if (notes) body += `\nWhat they'd like to discuss:\n${notes}\n`;
+    btn.disabled = true;
+    status.textContent = 'Sending...';
+    status.className = 'form-status';
 
-    const mailto = `mailto:pstriebel@outsetpartners.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    closeModal(scheduleModal);
+    const formData = new FormData();
+    formData.append('form_type', 'Schedule a Call');
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('proposed_times', times);
+    if (notes) formData.append('notes', notes);
+    formData.append('_subject', `Call Request — ${name}`);
+
+    fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        status.textContent = "Thanks — we've received your request and will follow up by email to confirm.";
+        status.className = 'form-status success';
+        document.getElementById('scheduleForm').reset();
+        setTimeout(() => closeModal(scheduleModal), 2200);
+      } else {
+        status.textContent = "Something went wrong. Please email us directly at pstriebel@outsetpartners.com.";
+        status.className = 'form-status error';
+      }
+    }).catch(() => {
+      status.textContent = "Something went wrong. Please email us directly at pstriebel@outsetpartners.com.";
+      status.className = 'form-status error';
+    }).finally(() => {
+      btn.disabled = false;
+    });
   });
 </script>
 
